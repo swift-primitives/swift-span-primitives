@@ -12,9 +12,10 @@
 // the [feedback_extension_implies_copyable] discipline: suppression does not
 // flow through refinement; restate it.
 
+public import Index_Primitives
 public import Span_Primitive
 
-extension Span.Mutable {
+extension __Span.Mutable {
     /// The mutable span-vending capability.
     ///
     /// Refines ``Span/Protocol`` (the owned read capability) and additionally
@@ -47,7 +48,7 @@ extension Span.Mutable {
     ///         @_lifetime(borrow self) get { /* … */ }
     ///     }
     ///     var mutableSpan: Swift.MutableSpan<Element> {
-    ///         mutating get { /* … */ }
+    ///         @_lifetime(&self) mutating get { /* … */ }
     ///     }
     /// }
     /// ```
@@ -56,9 +57,9 @@ extension Span.Mutable {
     ///
     /// To require *both* a domain core and the mutable span capability, compose
     /// the constraints at the use site
-    /// (`some Memory.Contiguous.\`Protocol\` & Span.Mutable.\`Protocol\``)
+    /// (`some Storage.Contiguous.\`Protocol\` & Span.Mutable.\`Protocol\``)
     /// rather than declaring a precomposed nested protocol
-    /// (`Memory.Contiguous.Mutable.\`Protocol\``), per `[API-NAME-002]`.
+    /// (`Storage.Contiguous.Mutable.\`Protocol\``), per `[API-NAME-002]`.
     ///
     /// ## Topics
     ///
@@ -69,6 +70,25 @@ extension Span.Mutable {
         ///
         /// Obtained through a `mutating get`: producing the mutable span
         /// requires exclusive access to `self`, which `mutating` enforces.
-        var mutableSpan: Swift.MutableSpan<Element> { mutating get }
+        /// The `@_lifetime(&self)` annotation states the exclusivity contract
+        /// at the declaration, uniform with ``Span/Protocol``'s annotated
+        /// `span` requirement. Declaration-side only: probe-proven
+        /// insufficient for generic forwarding of `mutableSpan` through a
+        /// constrained generic — the no-generic-`mutableSpan` gate is
+        /// structural, not conventional.
+        var mutableSpan: Swift.MutableSpan<Element> { @_lifetime(&self) mutating get }
+
+        /// A mutable span over the first `count` initialized elements.
+        ///
+        /// The count-parameterized companion to ``mutableSpan``. A growable discipline
+        /// (`Buffer.Linear`/`Buffer.Ring`) is the authority on its live count (its
+        /// header), and — unlike the `var mutableSpan` property, whose forwarding through
+        /// a constrained generic is borrow-walled (the structural gate documented above)
+        /// — a count-*method* CAN be forwarded through a constrained generic. This is the
+        /// seam a growable buffer uses to vend a mutable span over an arbitrary mutable
+        /// substrate (`Storage<…System>.Contiguous<Element>`, `Store.Small (deferred Q2)`), so growth need not be
+        /// pinned to one concrete storage.
+        @_lifetime(&self)
+        mutating func mutableSpan(count: Index<Element>.Count) -> Swift.MutableSpan<Element>
     }
 }

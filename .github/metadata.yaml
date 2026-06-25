@@ -1,0 +1,8 @@
+# .github/metadata.yaml
+description: "The span-vending capability domain — the namespace-neutral home for the protocols a type conforms to to expose a Swift.Span / MutableSpan over its elements (with Span.Raw for untyped byte spans)."
+topics:
+  - primitives
+  - span
+homepage: "https://swift-institute.org"
+readme:
+  family: E

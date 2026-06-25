@@ -1,3 +1,4 @@
+import Index_Primitives
 import Span_Primitives_Test_Support
 import Testing
 
@@ -7,11 +8,9 @@ import Testing
 // is a subdomain of the `Span` namespace, with the four canonical sub-suites
 // per [TEST-005].
 
-extension Span {
-    @Suite struct Test {}
-}
+@Suite struct SpanTests {}
 
-extension Span.Test {
+extension SpanTests {
     @Suite struct Unit {}
     @Suite struct `Edge Case` {}
     @Suite struct Integration {}
@@ -24,8 +23,9 @@ extension Span.Test {
 // of the test subdomain ([INST-TEST-013]) — they reference the source-domain
 // protocols directly, no parallel vocabulary.
 
-extension Span.Test {
+extension SpanTests {
     /// An owned region of `Int` that vends a read span by borrowing `self`.
+    ///
     /// Conforms to ``Span/Protocol`` (the owned leg).
     struct OwnedInts: Span.`Protocol` {
         typealias Element = Int
@@ -37,7 +37,9 @@ extension Span.Test {
     }
 
     /// An owned region of `Int` that vends both a read span and a mutable
-    /// span. Conforms to ``Span/Mutable/Protocol`` (the mutable refinement).
+    /// span.
+    ///
+    /// Conforms to ``Span/Mutable/Protocol`` (the mutable refinement).
     struct MutableInts: Span.Mutable.`Protocol` {
         typealias Element = Int
         var storage: [Int]
@@ -48,6 +50,13 @@ extension Span.Test {
         var mutableSpan: Swift.MutableSpan<Int> {
             mutating get { storage.mutableSpan }
         }
+        // Pre-existing fixture gap (growth-genericity #12a added this requirement to
+        // Span.Mutable.Protocol without updating this fixture). Fixed here so the suite
+        // compiles; this fixture is exercised only with the full extent.
+        @_lifetime(&self)
+        mutating func mutableSpan(count: Index<Int>.Count) -> Swift.MutableSpan<Int> {
+            storage.mutableSpan
+        }
     }
 
     /// A move-only element.
@@ -57,6 +66,7 @@ extension Span.Test {
     }
 
     /// A `~Copyable` owned region of `~Copyable` elements, vending a read span.
+    ///
     /// Conforms to ``Span/Protocol`` with a `~Copyable` `Element`.
     struct OwnedTokens: ~Copyable, Span.`Protocol` {
         typealias Element = Token
@@ -70,11 +80,11 @@ extension Span.Test {
 
 // MARK: - Unit
 
-extension Span.Test.Unit {
+extension SpanTests.Unit {
     // (a) An owned struct conforms to Span.`Protocol` and vends a read span.
     @Test
     func `owned struct conforms to Span Protocol and vends span`() {
-        let region = Span.Test.OwnedInts([10, 20, 30])
+        let region = SpanTests.OwnedInts([10, 20, 30])
         let span = region.span
         #expect(span.count == 3)
         #expect(span[0] == 10)
@@ -85,7 +95,7 @@ extension Span.Test.Unit {
     //     mutable span; mutation through it is observable on the read span.
     @Test
     func `owned struct conforms to Span Mutable Protocol and vends mutableSpan`() {
-        var region = Span.Test.MutableInts([1, 2, 3])
+        var region = SpanTests.MutableInts([1, 2, 3])
         do {
             var m = region.mutableSpan
             #expect(m.count == 3)
@@ -96,13 +106,13 @@ extension Span.Test.Unit {
         #expect(span[1] == 2)
     }
 
-    // (c) The linchpin: a bare Swift.Span<UInt8> satisfies
-    //     Span.Borrowed.`Protocol` and round-trips its bytes through `.span`.
+    // (c) The linchpin: a bare Swift.Span<UInt8> satisfies the unified
+    //     Span.`Protocol` and round-trips its bytes through `.span`.
     @Test
-    func `bare Swift Span of UInt8 satisfies Span Borrowed Protocol and round-trips bytes`() {
+    func `bare Swift Span of UInt8 satisfies Span Protocol and round-trips bytes`() {
         let bytes: [UInt8] = [0xDE, 0xAD, 0xBE, 0xEF]
         let span: Swift.Span<UInt8> = bytes.span
-        // `.span` is the Span.Borrowed.`Protocol` requirement — identity.
+        // `.span` is the Span.`Protocol` requirement — identity.
         let vended = span.span
         #expect(vended.count == 4)
         #expect(vended[0] == 0xDE)
@@ -114,7 +124,7 @@ extension Span.Test.Unit {
     // (d) A ~Copyable-element owned region conforms to Span.`Protocol`.
     @Test
     func `~Copyable element owned region conforms to Span Protocol`() {
-        let region = Span.Test.OwnedTokens(InlineArray<3, Span.Test.Token> { Span.Test.Token($0 + 1) })
+        let region = SpanTests.OwnedTokens(InlineArray<3, SpanTests.Token> { SpanTests.Token($0 + 1) })
         let span = region.span
         #expect(span.count == 3)
         #expect(span[0].id == 1)
@@ -124,10 +134,10 @@ extension Span.Test.Unit {
 
 // MARK: - Edge Case
 
-extension Span.Test.`Edge Case` {
+extension SpanTests.`Edge Case` {
     // The linchpin over an empty span: identity still holds, count is zero.
     @Test
-    func `empty Swift Span satisfies Span Borrowed Protocol with zero count`() {
+    func `empty Swift Span satisfies Span Protocol with zero count`() {
         let empty: [UInt8] = []
         let span: Swift.Span<UInt8> = empty.span
         let vended = span.span
@@ -142,7 +152,7 @@ extension Span.Test.`Edge Case` {
     // An owned region with a single element vends a length-1 span.
     @Test
     func `single-element owned region vends length-one span`() {
-        let region = Span.Test.OwnedInts([42])
+        let region = SpanTests.OwnedInts([42])
         let span = region.span
         #expect(span.count == 1)
         #expect(span[0] == 42)
@@ -155,7 +165,7 @@ extension Span.Test.`Edge Case` {
 // the concrete conformers — proving the protocols are usable as generic
 // constraints, not just as conformances.
 
-extension Span.Test.Integration {
+extension SpanTests.Integration {
     /// Sums the elements of any owned `Int` span capability.
     ///
     /// `Element` is constrained via a `where` clause (the protocols declare
@@ -170,13 +180,14 @@ extension Span.Test.Integration {
         return total
     }
 
-    /// Reads the first byte of any borrowed byte-span capability.
+    /// Reads the first byte of any byte-span capability, including a bare
+    /// `Swift.Span<UInt8>`.
     ///
     /// The constraint MUST restate `~Copyable & ~Escapable` — a bare
-    /// `some Span.Borrowed.`Protocol`` would implicitly require `Escapable`
-    /// `Self` and reject a bare `Swift.Span` (which is `~Escapable`). This is
-    /// the conformer-guidance finding documented on ``Span/Borrowed/Protocol``.
-    static func firstByte<R: Span.Borrowed.`Protocol` & ~Copyable & ~Escapable>(
+    /// `some Span.`Protocol`` would implicitly require `Escapable` `Self` and
+    /// reject a bare `Swift.Span` (which is `~Escapable`). This is the
+    /// conformer-guidance finding documented on ``Span/Protocol``.
+    static func firstByte<R: Span.`Protocol` & ~Copyable & ~Escapable>(
         _ region: borrowing R
     ) -> UInt8? where R.Element == UInt8 {
         let span = region.span
@@ -185,13 +196,13 @@ extension Span.Test.Integration {
 
     @Test
     func `generic over Span Protocol sums an owned region`() {
-        let region = Span.Test.OwnedInts([5, 7, 11])
+        let region = SpanTests.OwnedInts([5, 7, 11])
         #expect(Self.sum(region) == 23)
     }
 
     @Test
     func `generic over Span Protocol sums a mutable region after edit`() {
-        var region = Span.Test.MutableInts([1, 1, 1])
+        var region = SpanTests.MutableInts([1, 1, 1])
         do {
             var m = region.mutableSpan
             m[2] = 8
@@ -201,7 +212,7 @@ extension Span.Test.Integration {
     }
 
     @Test
-    func `generic over Span Borrowed Protocol reads first byte of a bare span`() {
+    func `generic over suppressed Span Protocol reads first byte of a bare span`() {
         let bytes: [UInt8] = [0x7F, 0x00]
         let span: Swift.Span<UInt8> = bytes.span
         #expect(Self.firstByte(span) == 0x7F)
@@ -214,4 +225,4 @@ extension Span.Test.Integration {
 // nested swift-testing benchmark packages per the `benchmark` skill). The
 // suite is declared for the [TEST-005] canonical-category set.
 
-extension Span.Test.Performance {}
+extension SpanTests.Performance {}
