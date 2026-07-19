@@ -27,6 +27,16 @@ extension Span.Raw {
     /// - `start` is always non-null (even for empty spans)
     /// - Memory is only valid to access within `0..<count`
     /// - For empty spans, `start` points to a sentinel; do not dereference
+    ///
+    /// ## Trap Contracts
+    ///
+    /// The safe APIs below enforce the `0..<count` invariant above with a
+    /// release-mode `precondition`, mirroring how stdlib `Span.extracting(_:)`
+    /// bounds-checks its safe slicing surface:
+    ///
+    /// - ``mutableSpan(count:)`` traps if `count` exceeds `self.count`.
+    /// - ``copy(from:)-(Span.Raw)`` and ``copy(from:)-(UnsafeRawBufferPointer)`` trap
+    ///   if the source has more bytes than this span can hold.
     @safe
     // WHY: Category D — structural Sendable workaround (SP-5, inherited from Memory.Buffer.Mutable).
     // WHY: A Copyable descriptor struct (NOT ~Copyable); fields are a raw mutable pointer and a
@@ -123,9 +133,19 @@ extension Span.Raw.Mutable: Span.Mutable.`Protocol` {
     }
 
     /// A mutable span over the first `count` bytes.
+    ///
+    /// - Precondition: `count <= self.count`. Enforced in release builds — requesting
+    ///   a span past the described region would otherwise vend the caller a
+    ///   `MutableSpan` whose bounds checking assumes memory that does not belong to
+    ///   this descriptor, turning any write into it into out-of-bounds memory
+    ///   corruption.
     @inlinable
     @_lifetime(&self)
     public mutating func mutableSpan(count: Index<Byte>.Count) -> Swift.MutableSpan<Byte> {
+        precondition(
+            count <= _count,
+            "Span.Raw.Mutable.mutableSpan(count:): count (\(Int(bitPattern: count))) exceeds span capacity (\(Int(bitPattern: _count)))"
+        )
         let typed = unsafe _start.assumingMemoryBound(to: Byte.self)
         return unsafe Swift.MutableSpan(_unsafeStart: typed, count: count)
     }
@@ -135,14 +155,32 @@ extension Span.Raw.Mutable: Span.Mutable.`Protocol` {
 
 extension Span.Raw.Mutable {
     /// Copies bytes from a source raw span.
+    ///
+    /// - Precondition: `source.count <= self.count`. Enforced in release builds —
+    ///   `UnsafeMutableRawBufferPointer.copyMemory(from:)` only debug-asserts this
+    ///   invariant, so without an explicit release-mode check a larger source
+    ///   silently overruns the destination in a release build.
     @inlinable
-    public func copy(from source: Span.Raw) {
+    public mutating func copy(from source: Span.Raw) {
+        precondition(
+            source.count <= _count,
+            "Span.Raw.Mutable.copy(from:): source count (\(Int(bitPattern: source.count))) exceeds destination capacity (\(Int(bitPattern: _count)))"
+        )
         unsafe base.nullable.copyMemory(from: source.base.nullable)
     }
 
     /// Copies bytes from a raw buffer pointer.
+    ///
+    /// - Precondition: `source.count <= self.count`. Enforced in release builds —
+    ///   `UnsafeMutableRawBufferPointer.copyMemory(from:)` only debug-asserts this
+    ///   invariant, so without an explicit release-mode check a larger source
+    ///   silently overruns the destination in a release build.
     @inlinable
-    public func copy(from source: UnsafeRawBufferPointer) {
+    public mutating func copy(from source: UnsafeRawBufferPointer) {
+        precondition(
+            source.count <= Int(bitPattern: _count),
+            "Span.Raw.Mutable.copy(from:): source count (\(source.count)) exceeds destination capacity (\(Int(bitPattern: _count)))"
+        )
         unsafe base.nullable.copyMemory(from: source)
     }
 }
