@@ -131,10 +131,12 @@ extension __Span.Raw.Mutable.`Bounds Safety`.`Edge Case` {
         }
     }
 
-    /// fable-448 F-001: `UnsafeMutableRawBufferPointer.copyMemory(from:)`'s own
-    /// bounds check is a `_debugPrecondition`, so under `swift test`'s default
-    /// debug configuration this scenario already traps via that stdlib guard —
+    /// fable-448 F-001: the bounds check built into
+    /// `UnsafeMutableRawBufferPointer.copyMemory(from:)` is a
+    /// `_debugPrecondition`, so under the default debug configuration of
+    /// `swift test` this scenario already traps via that stdlib guard —
     /// both pre-fix and post-fix — and cannot distinguish the two on its own.
+    ///
     /// The real fable-448 defect (a silent release-mode overrun) only manifests
     /// once that debug-only guard is compiled out; this test asserts the fix's
     /// own always-on `precondition` covers it under `-c release`. See
