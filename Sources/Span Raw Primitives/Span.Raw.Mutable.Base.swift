@@ -27,7 +27,7 @@ extension Span.Raw.Mutable {
         internal let _parent: Span.Raw.Mutable
 
         @inlinable
-        internal init(_ parent: Span.Raw.Mutable) {
+        package init(_ parent: Span.Raw.Mutable) {
             self._parent = parent
         }
     }
