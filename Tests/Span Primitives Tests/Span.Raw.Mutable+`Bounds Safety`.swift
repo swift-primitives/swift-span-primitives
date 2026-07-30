@@ -114,7 +114,9 @@ extension __Span.Raw.Mutable.`Bounds Safety`.Unit {
 // MARK: - Edge Case
 
 extension __Span.Raw.Mutable.`Bounds Safety`.`Edge Case` {
-    /// fable-448 F-001: pre-fix, `mutableSpan(count:)` had no bounds check
+    /// fable-448 F-001.
+    ///
+    /// Pre-fix, `mutableSpan(count:)` had no bounds check
     /// anywhere (not even in debug) — it vended a `MutableSpan` over a
     /// caller-supplied `count` regardless of the descriptor's real `_count`.
     /// This is the one part of F-001 whose regression is directly observable
