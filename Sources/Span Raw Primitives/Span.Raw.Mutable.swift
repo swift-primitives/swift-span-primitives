@@ -91,6 +91,8 @@ extension Span.Raw {
 ///
 /// See ``_emptyRawSpanSentinel`` for invariants.
 @usableFromInline
+// SAFETY: allocated once at startup, never mutated or deallocated —
+// see the doc comment above for the full sentinel-address invariant.
 nonisolated(unsafe) let _emptyMutableRawSpanSentinel: UnsafeMutableRawPointer =
     UnsafeMutableRawPointer.allocate(byteCount: 1, alignment: 4096)
 

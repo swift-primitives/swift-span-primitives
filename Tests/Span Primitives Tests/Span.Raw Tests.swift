@@ -14,9 +14,13 @@ import Testing
 
 // Span.Raw / Span.Raw.Mutable: the Copyable raw byte view relocated from
 // Memory.Buffer (Cleave-8 item 8). Conforms Span.Protocol / Span.Mutable.Protocol.
-@Suite("Span.Raw Tests")
-struct SpanRawTests {
+@Suite struct `Raw Tests` {
+    @Suite struct Unit {}
+    @Suite struct `Edge Case` {}
+    @Suite struct Integration {}
+}
 
+extension `Raw Tests`.Unit {
     @Test
     func `wraps a buffer and vends spans via the Span capability`() {
         let n = 16
@@ -29,7 +33,9 @@ struct SpanRawTests {
         let immutableCount = raw.immutable.span.count
         #expect(immutableCount == n)
     }
+}
 
+extension `Raw Tests`.`Edge Case` {
     @Test
     func `empty raw span is empty with a non-null sentinel`() {
         let raw: Span.Raw = .init()

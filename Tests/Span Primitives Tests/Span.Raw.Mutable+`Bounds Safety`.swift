@@ -87,7 +87,7 @@ extension __Span.Raw.Mutable.`Bounds Safety`.Unit {
 
         let srcBuffer = UnsafeMutableRawBufferPointer.allocate(byteCount: 4, alignment: 1)
         defer { unsafe srcBuffer.deallocate() }
-        for i in 0..<4 { unsafe srcBuffer[i] = UInt8(i + 1) }
+        (0..<4).forEach { i in unsafe srcBuffer[i] = UInt8(i + 1) }
         let src: Span.Raw = unsafe .init(UnsafeRawBufferPointer(srcBuffer))
 
         dst.copy(from: src)
@@ -98,7 +98,7 @@ extension __Span.Raw.Mutable.`Bounds Safety`.Unit {
     func `copy(from UnsafeRawBufferPointer) with a smaller source only overwrites the leading bytes`() {
         let dstBuffer = UnsafeMutableRawBufferPointer.allocate(byteCount: 4, alignment: 1)
         defer { unsafe dstBuffer.deallocate() }
-        for i in 0..<4 { unsafe dstBuffer[i] = 0xff }
+        (0..<4).forEach { i in unsafe dstBuffer[i] = 0xff }
         var dst: Span.Raw.Mutable = unsafe .init(dstBuffer)
 
         let srcBuffer = UnsafeMutableRawBufferPointer.allocate(byteCount: 2, alignment: 1)

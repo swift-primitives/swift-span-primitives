@@ -8,13 +8,11 @@ import Testing
 // is a subdomain of the `Span` namespace, with the four canonical sub-suites
 // per [TEST-005].
 
-@Suite struct SpanTests {}
-
-extension SpanTests {
+@Suite struct `Span Tests` {
     @Suite struct Unit {}
     @Suite struct `Edge Case` {}
     @Suite struct Integration {}
-    @Suite struct Performance {}
+    @Suite(.serialized) struct Performance {}
 }
 
 // MARK: - Fixtures
@@ -23,40 +21,22 @@ extension SpanTests {
 // of the test subdomain ([INST-TEST-013]) — they reference the source-domain
 // protocols directly, no parallel vocabulary.
 
-extension SpanTests {
+extension `Span Tests` {
     /// An owned region of `Int` that vends a read span by borrowing `self`.
     ///
     /// Conforms to ``Span/Protocol`` (the owned leg).
-    struct OwnedInts: Span.`Protocol` {
-        typealias Element = Int
+    struct Owned: Span.`Protocol` {
         var storage: [Int]
         init(_ storage: [Int]) { self.storage = storage }
-        var span: Swift.Span<Int> {
-            @_lifetime(borrow self) get { storage.span }
-        }
     }
 
     /// An owned region of `Int` that vends both a read span and a mutable
     /// span.
     ///
     /// Conforms to ``Span/Mutable/Protocol`` (the mutable refinement).
-    struct MutableInts: Span.Mutable.`Protocol` {
-        typealias Element = Int
+    struct Mutable: Span.Mutable.`Protocol` {
         var storage: [Int]
         init(_ storage: [Int]) { self.storage = storage }
-        var span: Swift.Span<Int> {
-            @_lifetime(borrow self) get { storage.span }
-        }
-        var mutableSpan: Swift.MutableSpan<Int> {
-            mutating get { storage.mutableSpan }
-        }
-        // Pre-existing fixture gap (growth-genericity #12a added this requirement to
-        // Span.Mutable.Protocol without updating this fixture). Fixed here so the suite
-        // compiles; this fixture is exercised only with the full extent.
-        @_lifetime(&self)
-        mutating func mutableSpan(count: Index<Int>.Count) -> Swift.MutableSpan<Int> {
-            storage.mutableSpan
-        }
     }
 
     /// A move-only element.
@@ -68,23 +48,53 @@ extension SpanTests {
     /// A `~Copyable` owned region of `~Copyable` elements, vending a read span.
     ///
     /// Conforms to ``Span/Protocol`` with a `~Copyable` `Element`.
-    struct OwnedTokens: ~Copyable, Span.`Protocol` {
-        typealias Element = Token
+    struct Tokens: ~Copyable, Span.`Protocol` {
         var storage: InlineArray<3, Token>
         init(_ storage: consuming InlineArray<3, Token>) { self.storage = storage }
-        var span: Swift.Span<Token> {
-            @_lifetime(borrow self) get { storage.span }
-        }
+    }
+}
+
+extension `Span Tests`.Owned {
+    typealias Element = Int
+
+    var span: Swift.Span<Int> {
+        @_lifetime(borrow self) get { storage.span }
+    }
+}
+
+extension `Span Tests`.Mutable {
+    typealias Element = Int
+
+    var span: Swift.Span<Int> {
+        @_lifetime(borrow self) get { storage.span }
+    }
+    var mutableSpan: Swift.MutableSpan<Int> {
+        mutating get { storage.mutableSpan }
+    }
+    // Pre-existing fixture gap (growth-genericity #12a added this requirement to
+    // Span.Mutable.Protocol without updating this fixture). Fixed here so the suite
+    // compiles; this fixture is exercised only with the full extent.
+    @_lifetime(&self)
+    mutating func mutableSpan(count: Index<Int>.Count) -> Swift.MutableSpan<Int> {
+        storage.mutableSpan
+    }
+}
+
+extension `Span Tests`.Tokens {
+    typealias Element = Token
+
+    var span: Swift.Span<Token> {
+        @_lifetime(borrow self) get { storage.span }
     }
 }
 
 // MARK: - Unit
 
-extension SpanTests.Unit {
+extension `Span Tests`.Unit {
     // (a) An owned struct conforms to Span.`Protocol` and vends a read span.
     @Test
     func `owned struct conforms to Span Protocol and vends span`() {
-        let region = SpanTests.OwnedInts([10, 20, 30])
+        let region = `Span Tests`.Owned([10, 20, 30])
         let span = region.span
         #expect(span.count == 3)
         #expect(span[0] == 10)
@@ -95,7 +105,7 @@ extension SpanTests.Unit {
     //     mutable span; mutation through it is observable on the read span.
     @Test
     func `owned struct conforms to Span Mutable Protocol and vends mutableSpan`() {
-        var region = SpanTests.MutableInts([1, 2, 3])
+        var region = `Span Tests`.Mutable([1, 2, 3])
         do {
             var m = region.mutableSpan
             #expect(m.count == 3)
@@ -124,7 +134,7 @@ extension SpanTests.Unit {
     // (d) A ~Copyable-element owned region conforms to Span.`Protocol`.
     @Test
     func `~Copyable element owned region conforms to Span Protocol`() {
-        let region = SpanTests.OwnedTokens(InlineArray<3, SpanTests.Token> { SpanTests.Token($0 + 1) })
+        let region = `Span Tests`.Tokens(InlineArray<3, `Span Tests`.Token> { `Span Tests`.Token($0 + 1) })
         let span = region.span
         #expect(span.count == 3)
         #expect(span[0].id == 1)
@@ -134,7 +144,7 @@ extension SpanTests.Unit {
 
 // MARK: - Edge Case
 
-extension SpanTests.`Edge Case` {
+extension `Span Tests`.`Edge Case` {
     // The linchpin over an empty span: identity still holds, count is zero.
     @Test
     func `empty Swift Span satisfies Span Protocol with zero count`() {
@@ -152,7 +162,7 @@ extension SpanTests.`Edge Case` {
     // An owned region with a single element vends a length-1 span.
     @Test
     func `single-element owned region vends length-one span`() {
-        let region = SpanTests.OwnedInts([42])
+        let region = `Span Tests`.Owned([42])
         let span = region.span
         #expect(span.count == 1)
         #expect(span[0] == 42)
@@ -165,7 +175,7 @@ extension SpanTests.`Edge Case` {
 // the concrete conformers — proving the protocols are usable as generic
 // constraints, not just as conformances.
 
-extension SpanTests.Integration {
+extension `Span Tests`.Integration {
     /// Sums the elements of any owned `Int` span capability.
     ///
     /// `Element` is constrained via a `where` clause (the protocols declare
@@ -176,6 +186,9 @@ extension SpanTests.Integration {
     where R.Element == Int {
         let span = region.span
         var total = 0
+        // IMPL-033 infrastructure carve-out: `span` is `~Escapable`, so a
+        // `forEach`/`indices.forEach` closure cannot capture it — this counter
+        // loop IS the iteration infrastructure for the Span capability itself.
         for i in 0..<span.count { total += span[i] }
         return total
     }
@@ -196,18 +209,18 @@ extension SpanTests.Integration {
 
     @Test
     func `generic over Span Protocol sums an owned region`() {
-        let region = SpanTests.OwnedInts([5, 7, 11])
+        let region = `Span Tests`.Owned([5, 7, 11])
         #expect(Self.sum(region) == 23)
     }
 
     @Test
     func `generic over Span Protocol sums a mutable region after edit`() {
-        var region = SpanTests.MutableInts([1, 1, 1])
+        var region = `Span Tests`.Mutable([1, 1, 1])
         do {
             var m = region.mutableSpan
             m[2] = 8
         }
-        // MutableInts is a Span.Mutable.`Protocol`, hence a Span.`Protocol`.
+        // Mutable is a Span.Mutable.`Protocol`, hence a Span.`Protocol`.
         #expect(Self.sum(region) == 10)
     }
 
@@ -225,4 +238,4 @@ extension SpanTests.Integration {
 // nested swift-testing benchmark packages per the `benchmark` skill). The
 // suite is declared for the [TEST-005] canonical-category set.
 
-extension SpanTests.Performance {}
+extension `Span Tests`.Performance {}

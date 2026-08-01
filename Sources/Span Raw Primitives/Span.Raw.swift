@@ -24,6 +24,8 @@ public import Span_Protocol_Primitives
 /// - Must NEVER be dereferenced (valid only as a sentinel address)
 /// - Valid for empty spans where count == 0
 @usableFromInline
+// SAFETY: allocated once at startup, never mutated or deallocated —
+// see the doc comment above for the full sentinel-address invariant.
 nonisolated(unsafe) let _emptyRawSpanSentinel: UnsafeRawPointer =
     UnsafeRawPointer(UnsafeMutableRawPointer.allocate(byteCount: 1, alignment: 4096))
 
