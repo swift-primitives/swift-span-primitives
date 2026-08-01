@@ -81,9 +81,9 @@ extension `Span Tests`.Mutable {
 }
 
 extension `Span Tests`.Tokens {
-    typealias Element = Token
+    typealias Element = `Span Tests`.Token
 
-    var span: Swift.Span<Token> {
+    var span: Swift.Span<`Span Tests`.Token> {
         @_lifetime(borrow self) get { storage.span }
     }
 }
