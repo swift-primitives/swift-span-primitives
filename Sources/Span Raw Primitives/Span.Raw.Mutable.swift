@@ -218,7 +218,8 @@ extension Span.Raw.Mutable: CustomStringConvertible {
     /// A textual representation of the span's start address and byte count.
     public var description: String {
         let address = unsafe UInt(bitPattern: _start)
-        return "Span.Raw.Mutable(start: 0x\(String(address, radix: 16)), count: \(Int(bitPattern: _count)))"
+        return
+            "Span.Raw.Mutable(start: 0x\(String(address, radix: 16)), count: \(Int(bitPattern: _count)))"
     }
 }
 
@@ -228,7 +229,8 @@ extension Span.Raw.Mutable: CustomDebugStringConvertible {
     /// A textual representation of the span suitable for debugging.
     public var debugDescription: String {
         let address = unsafe UInt(bitPattern: _start)
-        return "Span.Raw.Mutable(start: 0x\(String(address, radix: 16)), count: \(Int(bitPattern: _count)))"
+        return
+            "Span.Raw.Mutable(start: 0x\(String(address, radix: 16)), count: \(Int(bitPattern: _count)))"
     }
 }
 

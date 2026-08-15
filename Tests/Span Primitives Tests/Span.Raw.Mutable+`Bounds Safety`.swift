@@ -95,7 +95,9 @@ extension __Span.Raw.Mutable.`Bounds Safety`.Unit {
     }
 
     @Test
-    func `copy(from UnsafeRawBufferPointer) with a smaller source only overwrites the leading bytes`() {
+    func
+        `copy(from UnsafeRawBufferPointer) with a smaller source only overwrites the leading bytes`()
+    {
         let dstBuffer = UnsafeMutableRawBufferPointer.allocate(byteCount: 4, alignment: 1)
         defer { unsafe dstBuffer.deallocate() }
         (0..<4).forEach { i in unsafe dstBuffer[i] = 0xff }
@@ -145,7 +147,10 @@ extension __Span.Raw.Mutable.`Bounds Safety`.`Edge Case` {
     /// REPORT.md (d) for the explicit `swift test -c release` red/green
     /// capture.
     @Test
-    func `copy(from Span.Raw) traps under release when source has more bytes than the destination can hold`() async {
+    func
+        `copy(from Span.Raw) traps under release when source has more bytes than the destination can hold`()
+        async
+    {
         guard !_isDebugAssertConfiguration() else { return }
         await #expect(processExitsWith: .failure) {
             let dstBuffer = UnsafeMutableRawBufferPointer.allocate(byteCount: 4, alignment: 1)
@@ -163,7 +168,10 @@ extension __Span.Raw.Mutable.`Bounds Safety`.`Edge Case` {
     /// fable-448 F-001: same release-only reasoning as the `Span.Raw` overload
     /// above, for the `UnsafeRawBufferPointer` overload.
     @Test
-    func `copy(from UnsafeRawBufferPointer) traps under release when source has more bytes than the destination can hold`() async {
+    func
+        `copy(from UnsafeRawBufferPointer) traps under release when source has more bytes than the destination can hold`()
+        async
+    {
         guard !_isDebugAssertConfiguration() else { return }
         await #expect(processExitsWith: .failure) {
             let dstBuffer = UnsafeMutableRawBufferPointer.allocate(byteCount: 4, alignment: 1)

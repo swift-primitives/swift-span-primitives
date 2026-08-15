@@ -134,7 +134,9 @@ extension `Span Tests`.Unit {
     // (d) A ~Copyable-element owned region conforms to Span.`Protocol`.
     @Test
     func `~Copyable element owned region conforms to Span Protocol`() {
-        let region = `Span Tests`.Tokens(InlineArray<3, `Span Tests`.Token> { `Span Tests`.Token($0 + 1) })
+        let region = `Span Tests`.Tokens(
+            InlineArray<3, `Span Tests`.Token> { `Span Tests`.Token($0 + 1) }
+        )
         let span = region.span
         #expect(span.count == 3)
         #expect(span[0].id == 1)
