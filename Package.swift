@@ -1,15 +1,15 @@
-// swift-tools-version: 6.3.3
+// swift-tools-version: 6.4
 
 import PackageDescription
 
 let package = Package(
     name: "swift-span-primitives",
     platforms: [
-        .macOS("27"),
-        .iOS("27"),
-        .tvOS("27"),
-        .watchOS("27"),
-        .visionOS("27"),
+        .macOS(.v27),
+        .iOS(.v27),
+        .tvOS(.v27),
+        .watchOS(.v27),
+        .visionOS(.v27),
     ],
     products: [
         .library(
@@ -37,14 +37,23 @@ let package = Package(
         // growth-genericity #12a: Span.Mutable.Protocol's count-bounded mutableSpan(count:)
         // requirement references the typed count Index<Element>.Count. Acyclic (index does
         // not depend on span); scoped to the protocol target — the namespace target stays leaf.
-        .package(url: "https://github.com/swift-primitives/swift-index-primitives.git", branch: "main"),
+        .package(
+            url: "https://github.com/swift-primitives/swift-index-primitives.git",
+            branch: "main"
+        ),
         // Span.Raw (Cleave-8 item 8): the relocated Copyable raw byte view's element type.
         // Acyclic + downward (byte is a boundary-tier representation primitive below span);
         // scoped to the Span Raw Primitives target — the namespace + protocol targets stay leaf.
-        .package(url: "https://github.com/swift-primitives/swift-byte-primitives.git", branch: "main"),
+        .package(
+            url: "https://github.com/swift-primitives/swift-byte-primitives.git",
+            branch: "main"
+        ),
         // Span.Raw count → Int(bitPattern:) at the stdlib boundary (UnsafeRawBufferPointer /
         // logging) [CONV-004]; cardinal is boundary-tier (below span), acyclic.
-        .package(url: "https://github.com/swift-primitives/swift-cardinal-primitives.git", branch: "main"),
+        .package(
+            url: "https://github.com/swift-primitives/swift-cardinal-primitives.git",
+            branch: "main"
+        ),
     ],
     targets: [
         .target(
@@ -65,7 +74,10 @@ let package = Package(
                 "Span Protocol Primitives",
                 .product(name: "Index Primitives", package: "swift-index-primitives"),
                 .product(name: "Byte Primitives", package: "swift-byte-primitives"),
-                .product(name: "Cardinal Primitives Standard Library Integration", package: "swift-cardinal-primitives"),
+                .product(
+                    name: "Cardinal Primitives Standard Library Integration",
+                    package: "swift-cardinal-primitives"
+                ),
             ]
         ),
         .target(
@@ -79,7 +91,7 @@ let package = Package(
         .target(
             name: "Span Primitives Test Support",
             dependencies: [
-                "Span Primitives",
+                "Span Primitives"
             ],
             path: "Tests/Support"
         ),
