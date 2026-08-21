@@ -1,19 +1,6 @@
-// ===----------------------------------------------------------------------===//
-//
-// This source file is part of the swift-primitives open source project
-//
-// Copyright (c) 2024-2026 Coen ten Thije Boonkkamp and the swift-primitives project authors
-// Licensed under Apache License v2.0
-//
-// See LICENSE for license information
-//
-// ===----------------------------------------------------------------------===//
-
 import Span_Primitives_Test_Support
 import Testing
 
-// Span.Raw / Span.Raw.Mutable: the Copyable raw byte view relocated from
-// Memory.Buffer (Cleave-8 item 8). Conforms Span.Protocol / Span.Mutable.Protocol.
 @Suite struct `Raw Tests` {
     @Suite struct Unit {}
     @Suite struct `Edge Case` {}

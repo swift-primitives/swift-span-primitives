@@ -1,80 +1,32 @@
-// ===----------------------------------------------------------------------===//
-//
-// This source file is part of the swift-primitives open source project
-//
-// Copyright (c) 2024-2026 Coen ten Thije Boonkkamp and the swift-primitives project authors
-// Licensed under Apache License v2.0
-//
-// See LICENSE for license information
-//
-// ===----------------------------------------------------------------------===//
-
 public import Byte_Primitives
 import Cardinal_Primitives_Standard_Library_Integration
 public import Index_Primitives
 public import Span_Protocol_Primitives
 
 extension Span.Raw {
-    /// A Copyable, non-owning **mutable** raw byte view with a guaranteed non-null start.
-    ///
-    /// The read-write peer of ``Span/Raw`` (Cleave-8 item 8; relocated from
-    /// `Memory.Buffer.Mutable`). It describes a region the caller owns separately — it
-    /// does **not** allocate or free. Conforms ``Span/Mutable/Protocol`` (vends both
-    /// `Swift.Span<Byte>` and `Swift.MutableSpan<Byte>`).
-    ///
-    /// ## Invariants
-    ///
-    /// - `start` is always non-null (even for empty spans)
-    /// - Memory is only valid to access within `0..<count`
-    /// - For empty spans, `start` points to a sentinel; do not dereference
-    ///
-    /// ## Trap Contracts
-    ///
-    /// The safe APIs below enforce the `0..<count` invariant above with a
-    /// release-mode `precondition`, mirroring how stdlib `Span.extracting(_:)`
-    /// bounds-checks its safe slicing surface:
-    ///
-    /// - ``mutableSpan(count:)`` traps if `count` exceeds `self.count`.
-    /// - ``copy(from:)-(Span.Raw)`` and ``copy(from:)-(UnsafeRawBufferPointer)`` trap
-    ///   if the source has more bytes than this span can hold.
+
     @safe
-    // WHY: Category D — structural Sendable workaround (SP-5, inherited from Memory.Buffer.Mutable).
-    // WHY: A Copyable descriptor struct (NOT ~Copyable); fields are a raw mutable pointer and a
-    // WHY: typed count, both let, both pure value bytes. No mutex, no deinit, no owned allocation.
-    // WHEN TO REMOVE: when the compiler gains structural Sendable inference for raw-pointer descriptors.
+
     public struct Mutable: Hashable, @unchecked Sendable {
 
-        // MARK: - Stored Properties
-
-        /// Non-null start address.
-        ///
-        /// For empty spans, points to sentinel.
         @usableFromInline
         internal let _start: UnsafeMutableRawPointer
 
-        /// Byte count.
         @usableFromInline
         internal let _count: Index<Byte>.Count
 
-        // MARK: - Initialization
-
-        /// Creates a mutable raw span from a start address and byte count.
         @inlinable
         public init(start: UnsafeMutableRawPointer, count: Index<Byte>.Count) {
             unsafe self._start = start
             self._count = count
         }
 
-        /// Creates an empty mutable raw span.
         @inlinable
         public init() {
             unsafe self._start = _emptyMutableRawSpanSentinel
             self._count = .zero
         }
 
-        /// Creates a mutable raw span from an `UnsafeMutableRawBufferPointer`.
-        ///
-        /// If the source buffer is empty (nil baseAddress), uses the sentinel.
         @inlinable
         public init(_ buffer: UnsafeMutableRawBufferPointer) {
             if let baseAddress = buffer.baseAddress {
@@ -87,34 +39,24 @@ extension Span.Raw {
     }
 }
 
-/// Mutable singleton sentinel for empty mutable raw spans.
-///
-/// See ``_emptyRawSpanSentinel`` for invariants.
 @usableFromInline
-// SAFETY: allocated once at startup, never mutated or deallocated —
-// see the doc comment above for the full sentinel-address invariant.
+
 nonisolated(unsafe) let _emptyMutableRawSpanSentinel: UnsafeMutableRawPointer =
     UnsafeMutableRawPointer.allocate(byteCount: 1, alignment: 4096)
 
-// MARK: - Properties
-
 extension Span.Raw.Mutable {
-    /// The number of bytes in the span.
+
     @inlinable
     public var count: Index<Byte>.Count { _count }
 
-    /// A Boolean value indicating whether the span is empty.
     @inlinable
     public var isEmpty: Bool { _count == .zero }
 }
 
-// MARK: - Span.Mutable.Protocol Conformance
-
 extension Span.Raw.Mutable: Span.Mutable.`Protocol` {
-    /// The element type vended through the span.
+
     public typealias Element = Byte
 
-    /// A read-only contiguous view of the bytes, borrowing `self`.
     @inlinable
     public var span: Swift.Span<Byte> {
         @_lifetime(borrow self)
@@ -124,7 +66,6 @@ extension Span.Raw.Mutable: Span.Mutable.`Protocol` {
         }
     }
 
-    /// A mutable contiguous view of the bytes, exclusively borrowing `self`.
     @inlinable
     public var mutableSpan: Swift.MutableSpan<Byte> {
         @_lifetime(&self)
@@ -134,13 +75,6 @@ extension Span.Raw.Mutable: Span.Mutable.`Protocol` {
         }
     }
 
-    /// A mutable span over the first `count` bytes.
-    ///
-    /// - Precondition: `count <= self.count`. Enforced in release builds — requesting
-    ///   a span past the described region would otherwise vend the caller a
-    ///   `MutableSpan` whose bounds checking assumes memory that does not belong to
-    ///   this descriptor, turning any write into it into out-of-bounds memory
-    ///   corruption.
     @inlinable
     @_lifetime(&self)
     public mutating func mutableSpan(count: Index<Byte>.Count) -> Swift.MutableSpan<Byte> {
@@ -153,15 +87,8 @@ extension Span.Raw.Mutable: Span.Mutable.`Protocol` {
     }
 }
 
-// MARK: - Copy Operations
-
 extension Span.Raw.Mutable {
-    /// Copies bytes from a source raw span.
-    ///
-    /// - Precondition: `source.count <= self.count`. Enforced in release builds —
-    ///   `UnsafeMutableRawBufferPointer.copyMemory(from:)` only debug-asserts this
-    ///   invariant, so without an explicit release-mode check a larger source
-    ///   silently overruns the destination in a release build.
+
     @inlinable
     public mutating func copy(from source: Span.Raw) {
         precondition(
@@ -171,12 +98,6 @@ extension Span.Raw.Mutable {
         unsafe base.nullable.copyMemory(from: source.base.nullable)
     }
 
-    /// Copies bytes from a raw buffer pointer.
-    ///
-    /// - Precondition: `source.count <= self.count`. Enforced in release builds —
-    ///   `UnsafeMutableRawBufferPointer.copyMemory(from:)` only debug-asserts this
-    ///   invariant, so without an explicit release-mode check a larger source
-    ///   silently overruns the destination in a release build.
     @inlinable
     public mutating func copy(from source: UnsafeRawBufferPointer) {
         precondition(
@@ -187,10 +108,8 @@ extension Span.Raw.Mutable {
     }
 }
 
-// MARK: - Type Reinterpretation
-
 extension Span.Raw.Mutable {
-    /// Executes a closure with the span's memory temporarily bound to a typed mutable buffer.
+
     @inlinable
     public func withRebound<T, Result, E: Swift.Error>(
         to type: T.Type,
@@ -202,20 +121,16 @@ extension Span.Raw.Mutable {
     }
 }
 
-// MARK: - Conversion
-
 extension Span.Raw.Mutable {
-    /// Creates an immutable raw span from this mutable raw span.
+
     @inlinable
     public var immutable: Span.Raw {
         unsafe Span<Byte>.Raw(start: UnsafeRawPointer(_start), count: _count)
     }
 }
 
-// MARK: - CustomStringConvertible
-
 extension Span.Raw.Mutable: CustomStringConvertible {
-    /// A textual representation of the span's start address and byte count.
+
     public var description: String {
         let address = unsafe UInt(bitPattern: _start)
         return
@@ -223,10 +138,8 @@ extension Span.Raw.Mutable: CustomStringConvertible {
     }
 }
 
-// MARK: - CustomDebugStringConvertible
-
 extension Span.Raw.Mutable: CustomDebugStringConvertible {
-    /// A textual representation of the span suitable for debugging.
+
     public var debugDescription: String {
         let address = unsafe UInt(bitPattern: _start)
         return
@@ -234,20 +147,16 @@ extension Span.Raw.Mutable: CustomDebugStringConvertible {
     }
 }
 
-// MARK: - Equatable
-
 extension Span.Raw.Mutable {
-    /// Returns whether two spans share the same start address and byte count.
+
     @inlinable
     public static func == (lhs: Self, rhs: Self) -> Bool {
         unsafe lhs._start == rhs._start && lhs._count == rhs._count
     }
 }
 
-// MARK: - Hashable
-
 extension Span.Raw.Mutable {
-    /// Hashes the span's start address and byte count.
+
     @inlinable
     public func hash(into hasher: inout Hasher) {
         unsafe hasher.combine(_start)
